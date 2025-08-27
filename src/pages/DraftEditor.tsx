@@ -1,4 +1,3 @@
-
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -70,12 +69,14 @@ const DraftEditor = () => {
     try {
       await updateDraft({
         id: draft.id,
-        title: formData.title || null,
-        caption: formData.caption || null,
-        hashtags: formData.hashtags || null,
-        target_instagram: formData.target_instagram,
-        target_tiktok: formData.target_tiktok,
-        desired_publish_at: formData.desired_publish_at || null,
+        updates: {
+          title: formData.title || null,
+          caption: formData.caption || null,
+          hashtags: formData.hashtags || null,
+          target_instagram: formData.target_instagram,
+          target_tiktok: formData.target_tiktok,
+          desired_publish_at: formData.desired_publish_at || null,
+        }
       });
     } catch (error) {
       console.error('Error saving draft:', error);

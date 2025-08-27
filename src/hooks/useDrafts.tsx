@@ -34,6 +34,28 @@ export interface CreateDraftInput {
   metadata?: any;
 }
 
+export const useDraft = (id: string) => {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ['draft', id, user?.id],
+    queryFn: async () => {
+      if (!user || !id) return null;
+      
+      const { data, error } = await supabase
+        .from('drafts')
+        .select('*')
+        .eq('id', id)
+        .eq('owner', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data as Draft | null;
+    },
+    enabled: !!user && !!id,
+  });
+};
+
 export const useDrafts = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
