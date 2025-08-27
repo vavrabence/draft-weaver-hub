@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { FileImage, FileVideo, Edit, Wand2, Scissors, Calendar, Trash2, Search, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDrafts } from '@/hooks/useDrafts';
-import { supabase } from '@/integrations/supabase/client';
+import MediaPreview from '@/components/MediaPreview';
 
 const Drafts = () => {
   const navigate = useNavigate();
@@ -54,13 +55,6 @@ const Drafts = () => {
     } catch (error) {
       console.error('Error deleting drafts:', error);
     }
-  };
-
-  const getMediaUrl = async (mediaPath: string) => {
-    const { data } = await supabase.storage
-      .from('raw_media')
-      .createSignedUrl(mediaPath, 3600);
-    return data?.signedUrl || '/placeholder.svg';
   };
 
   const filteredDrafts = drafts?.filter(draft => {
@@ -149,11 +143,13 @@ const Drafts = () => {
             {filteredDrafts.map((draft) => (
               <Card key={draft.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="relative">
-                  <img 
-                    src="/placeholder.svg"
-                    alt={draft.title || 'Draft'}
-                    className="w-full h-48 object-cover"
-                  />
+                  <div className="w-full h-48">
+                    <MediaPreview 
+                      mediaPath={draft.media_path}
+                      mediaType={draft.media_type}
+                      alt={draft.title || 'Draft'}
+                    />
+                  </div>
                   <div className="absolute top-3 left-3">
                     {draft.media_type === 'image' ? (
                       <FileImage className="h-6 w-6 text-white bg-black/50 rounded p-1" />

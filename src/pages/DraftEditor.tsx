@@ -5,11 +5,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Save, Wand2, Scissors, Calendar, Play } from 'lucide-react';
+import { ArrowLeft, Save, Wand2, Scissors, Calendar } from 'lucide-react';
 import { useDraft, useDrafts } from '@/hooks/useDrafts';
 import { useState, useEffect } from 'react';
+import MediaPreview from '@/components/MediaPreview';
 
 const DraftEditor = () => {
   const { id } = useParams<{ id: string }>();
@@ -121,18 +121,11 @@ const DraftEditor = () => {
             </CardHeader>
             <CardContent>
               <div className="aspect-square bg-muted rounded-lg overflow-hidden mb-4">
-                {draft.media_type === 'video' ? (
-                  <div className="relative w-full h-full flex items-center justify-center bg-black">
-                    <Play className="h-16 w-16 text-white" />
-                    <div className="absolute inset-0 bg-black/20" />
-                  </div>
-                ) : (
-                  <img 
-                    src="/placeholder.svg"
-                    alt={draft.title || 'Draft'}
-                    className="w-full h-full object-cover"
-                  />
-                )}
+                <MediaPreview 
+                  mediaPath={draft.media_path}
+                  mediaType={draft.media_type}
+                  alt={draft.title || 'Draft'}
+                />
               </div>
               
               <div className="flex items-center gap-2 mb-4">
@@ -144,7 +137,6 @@ const DraftEditor = () => {
                 <Button 
                   variant="outline" 
                   className="w-full gap-2"
-                  onClick={handleRequestEdit}
                   disabled
                 >
                   <Scissors className="h-4 w-4" />
@@ -184,7 +176,6 @@ const DraftEditor = () => {
                     size="sm" 
                     variant="ghost" 
                     className="gap-2"
-                    onClick={handleGenerateCaption}
                     disabled
                   >
                     <Wand2 className="h-3 w-3" />
@@ -246,7 +237,6 @@ const DraftEditor = () => {
                 </Button>
                 <Button 
                   variant="outline" 
-                  onClick={handleSchedule}
                   disabled
                   className="gap-2"
                 >
