@@ -10,10 +10,13 @@ import {
   LogOut
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 const Navigation = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, signOut } = useAuth();
 
   const navItems = [
     { icon: Home, label: 'Dashboard', path: '/' },
@@ -23,10 +26,14 @@ const Navigation = () => {
     { icon: Settings, label: 'Settings', path: '/settings' },
   ];
 
-  const handleSignOut = () => {
-    // TODO: Implement real sign out
-    console.log('Sign out');
-    navigate('/auth');
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast.success('Signed out successfully');
+      navigate('/auth');
+    } catch (error) {
+      toast.error('Error signing out');
+    }
   };
 
   return (
@@ -56,6 +63,9 @@ const Navigation = () => {
       </div>
 
       <div className="border-t border-border pt-4 space-y-2">
+        <div className="px-3 py-2 text-sm text-muted-foreground">
+          {user?.email}
+        </div>
         <Button variant="ghost" className="w-full justify-start gap-3">
           <User className="h-4 w-4" />
           Profile

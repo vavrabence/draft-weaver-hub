@@ -6,20 +6,114 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Mail, Lock, User } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { useEffect } from 'react';
 
 const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
-  const handleSignIn = () => {
-    // TODO: Implement Supabase auth
-    console.log('Sign in:', { email, password });
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
+
+  const handleSignIn = async () => {
+    if (!email || !password) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success('Signed in successfully!');
+        navigate('/');
+      }
+    } catch (error) {
+      toast.error('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSignUp = () => {
-    // TODO: Implement Supabase auth
-    console.log('Sign up:', { email, password, displayName });
+  const handleSignUp = async () => {
+    if (!email || !password || !displayName) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            display_name: displayName,
+          },
+        },
+      });
+
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success('Account created! Please check your email to confirm your account.');
+      }
+    } catch (error) {
+      toast.error('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMagicLink = async () => {
+    if (!email) {
+      toast.error('Please enter your email address');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+        },
+      });
+
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success('Magic link sent! Check your email.');
+      }
+    } catch (error) {
+      toast.error('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -50,6 +144,7 @@ const Auth = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10"
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -65,16 +160,17 @@ const Auth = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10"
+                    disabled={loading}
                   />
                 </div>
               </div>
               
-              <Button onClick={handleSignIn} className="w-full">
-                Sign In
+              <Button onClick={handleSignIn} className="w-full" disabled={loading}>
+                {loading ? 'Signing In...' : 'Sign In'}
               </Button>
               
-              <Button variant="outline" className="w-full">
-                Sign in with Magic Link
+              <Button variant="outline" className="w-full" onClick={handleMagicLink} disabled={loading}>
+                {loading ? 'Sending...' : 'Sign in with Magic Link'}
               </Button>
             </TabsContent>
             
@@ -89,6 +185,7 @@ const Auth = () => {
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     className="pl-10"
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -104,6 +201,7 @@ const Auth = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10"
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -119,12 +217,13 @@ const Auth = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10"
+                    disabled={loading}
                   />
                 </div>
               </div>
               
-              <Button onClick={handleSignUp} className="w-full">
-                Create Account
+              <Button onClick={handleSignUp} className="w-full" disabled={loading}>
+                {loading ? 'Creating Account...' : 'Create Account'}
               </Button>
             </TabsContent>
           </Tabs>
