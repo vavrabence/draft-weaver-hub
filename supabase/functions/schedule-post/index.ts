@@ -90,6 +90,20 @@ Deno.serve(async (req) => {
       })
     }
 
+    // Log schedule created event
+    await supabase
+      .from('events')
+      .insert({
+        owner: draft.owner,
+        kind: 'schedule.created',
+        ref_id: draftId,
+        payload: { 
+          platforms, 
+          scheduled_for: scheduledFor,
+          platform_count: platforms.length
+        }
+      })
+
     console.log(`Post scheduled for draft ${draftId} on platforms: ${platforms.join(', ')}`)
     
     return new Response(JSON.stringify({ ok: true }), {

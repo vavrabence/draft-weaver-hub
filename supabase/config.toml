@@ -10,17 +10,22 @@ max_rows = 1000
 
 [auth]
 enabled = true
-port = 54322
-site_url = "http://localhost:3000"
-additional_redirect_urls = []
+port = 54324
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["https://localhost:3000"]
 jwt_expiry = 3600
 enable_signup = true
-enable_confirmations = false
+
+[db]
+enabled = true
+port = 54322
+shadow_port = 54320
+major_version = 15
 
 [functions.generate-caption]
 verify_jwt = false
 
-[functions.request-edit]
+[functions.request-edit]  
 verify_jwt = false
 
 [functions.schedule-post]
@@ -30,4 +35,15 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.analyze-style]
-verify_jwt = true
+verify_jwt = false
+
+[functions.style-build]
+verify_jwt = false
+
+[functions.process-scheduled-posts]
+verify_jwt = false
+
+[storage]
+enabled = true
+port = 54323
+file_size_limit = "50MiB"

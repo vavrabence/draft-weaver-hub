@@ -53,44 +53,113 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Prepare updates
-    const updates: any = {
-      updated_at: new Date().toISOString()
-    }
-
     if (renderPath) {
       // Follow-up call with render path - set back to draft status
-      updates.status = 'draft'
-      updates.metadata = {
-        ...draft.metadata,
-        render_path: renderPath,
-        edit_preset: preset || null
+      const { error: updateError } = await supabase
+        .from('drafts')
+        .update({
+          status: 'draft',
+          metadata: {
+            ...draft.metadata,
+            render_path: renderPath,
+            edit_preset: preset || null,
+            edited_at: new Date().toISOString()
+          },
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', draftId)
+
+      if (updateError) {
+        console.error('Error updating draft:', updateError)
+        return new Response(JSON.stringify({ error: 'Failed to update draft' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
       }
+
+      // Log edit ready event
+      await supabase
+        .from('events')
+        .insert({
+          owner: draft.owner,
+          kind: 'edit.ready',
+          ref_id: draftId,
+          payload: { render_path: renderPath, preset }
+        })
+
+      console.log(`Edit completed for draft ${draftId}, renderPath: ${renderPath}`)
     } else {
-      // Initial edit request - set to editing status
-      updates.status = 'editing'
-      if (preset) {
-        updates.metadata = {
-          ...draft.metadata,
-          edit_preset: preset
-        }
-      }
+      // Initial edit request - set to editing status and simulate processing
+      await supabase
+        .from('drafts')
+        .update({
+          status: 'editing',
+          metadata: {
+            ...draft.metadata,
+            edit_preset: preset || 'silence-cut+captions',
+            edit_started_at: new Date().toISOString()
+          },
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', draftId)
+
+      // Log edit request event
+      await supabase
+        .from('events')
+        .insert({
+          owner: draft.owner,
+          kind: 'edit.request',
+          ref_id: draftId,
+          payload: { preset: preset || 'silence-cut+captions' }
+        })
+
+      // Simulate video editing with a background task
+      EdgeRuntime.waitUntil(
+        (async () => {
+          // Wait 15-30 seconds to simulate processing
+          const processingTime = 15000 + Math.random() * 15000
+          await new Promise(resolve => setTimeout(resolve, processingTime))
+          
+          // Generate a simulated render path
+          const simulatedRenderPath = `renders/${draftId}_edited_${Date.now()}.mp4`
+          
+          // Update the draft with the completed edit
+          await supabase
+            .from('drafts')
+            .update({
+              status: 'draft',
+              metadata: {
+                ...draft.metadata,
+                render_path: simulatedRenderPath,
+                edit_preset: preset || 'silence-cut+captions',
+                edited_at: new Date().toISOString(),
+                simulated: true
+              },
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', draftId)
+
+          // Log edit completion
+          await supabase
+            .from('events')
+            .insert({
+              owner: draft.owner,
+              kind: 'edit.ready',
+              ref_id: draftId,
+              payload: { 
+                render_path: simulatedRenderPath, 
+                preset: preset || 'silence-cut+captions',
+                simulated: true,
+                processing_time_ms: processingTime
+              }
+            })
+
+          console.log(`Simulated edit completed for draft ${draftId}`)
+        })()
+      )
+
+      console.log(`Edit request initiated for draft ${draftId}, preset: ${preset}`)
     }
-
-    const { error: updateError } = await supabase
-      .from('drafts')
-      .update(updates)
-      .eq('id', draftId)
-
-    if (updateError) {
-      console.error('Error updating draft:', updateError)
-      return new Response(JSON.stringify({ error: 'Failed to update draft' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
-    console.log(`Edit requested for draft ${draftId}, preset: ${preset}, renderPath: ${renderPath}`)
     
     return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

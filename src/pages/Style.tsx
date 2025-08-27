@@ -2,18 +2,21 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Palette, Instagram, Youtube, BarChart3, TrendingUp, Clock, Hash } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Palette, Instagram, Youtube, BarChart3, TrendingUp, Clock, Hash, Wand2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { webhooks } from '@/lib/webhooks';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { StyleProfile, isStyleProfile } from '@/types/style';
 
 const Style = () => {
   const { user } = useAuth();
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const queryClient = useQueryClient();
+  const [samples, setSamples] = useState('');
+  const [isBuildingProfile, setIsBuildingProfile] = useState(false);
 
   // Query for user's style profile
   const { data: profile, isLoading, refetch } = useQuery({
@@ -33,22 +36,37 @@ const Style = () => {
     enabled: !!user,
   });
 
-  const handleAnalyzeStyle = async (source?: 'instagram' | 'tiktok') => {
-    setIsAnalyzing(true);
+  const buildStyleProfile = useMutation({
+    mutationFn: async (samples: string) => {
+      const { data, error } = await supabase.functions.invoke('style-build', {
+        body: { samples }
+      });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
+      toast.success('Style profile built successfully!');
+      setSamples('');
+    },
+    onError: (error) => {
+      console.error('Error building style profile:', error);
+      toast.error('Failed to build style profile');
+    }
+  });
+
+  const handleBuildProfile = async () => {
+    if (!samples.trim() || samples.trim().length < 50) {
+      toast.error('Please provide at least 50 characters of sample content');
+      return;
+    }
+
+    setIsBuildingProfile(true);
     try {
-      const result = await webhooks.analyzeStyle(source);
-      if (result.ok) {
-        toast.success('Style analysis initiated!');
-        // Refetch profile to get updated style data
-        await refetch();
-      } else {
-        toast.error('Failed to analyze style');
-      }
-    } catch (error) {
-      console.error('Error analyzing style:', error);
-      toast.error('Failed to analyze style');
+      await buildStyleProfile.mutateAsync(samples);
     } finally {
-      setIsAnalyzing(false);
+      setIsBuildingProfile(false);
     }
   };
 
@@ -72,53 +90,49 @@ const Style = () => {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-6">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold">Style Profile</h1>
+          <h1 className="text-3xl font-bold">Style Profile Builder</h1>
           <p className="text-muted-foreground">
-            Analyze your content style and get insights for better engagement
+            Build your unique content style profile using AI analysis of your past posts
           </p>
         </div>
 
         <div className="grid gap-6">
-          {/* Analysis Actions */}
+          {/* Style Profile Builder */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Palette className="h-5 w-5" />
-                Content Analysis
+                <Wand2 className="h-5 w-5" />
+                Build Your Style Profile
               </CardTitle>
               <CardDescription>
-                Analyze your posting patterns and content style
+                Paste 10-30 of your past captions or posts to generate a personalized style profile
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="flex gap-4 flex-wrap">
-                <Button 
-                  onClick={() => handleAnalyzeStyle('instagram')} 
-                  disabled={isAnalyzing}
-                  className="gap-2"
-                >
-                  <Instagram className="h-4 w-4" />
-                  {isAnalyzing ? 'Analyzing...' : 'Analyze Instagram Style'}
-                </Button>
-                <Button 
-                  onClick={() => handleAnalyzeStyle('tiktok')} 
-                  disabled={isAnalyzing}
-                  variant="outline"
-                  className="gap-2"
-                >
-                  <Youtube className="h-4 w-4" />
-                  {isAnalyzing ? 'Analyzing...' : 'Analyze TikTok Style'}
-                </Button>
-                <Button 
-                  onClick={() => handleAnalyzeStyle()} 
-                  disabled={isAnalyzing}
-                  variant="outline"
-                  className="gap-2"
-                >
-                  <BarChart3 className="h-4 w-4" />
-                  {isAnalyzing ? 'Analyzing...' : 'Analyze All Content'}
-                </Button>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="samples">Past Captions/Posts</Label>
+                <Textarea
+                  id="samples"
+                  placeholder="Paste your previous social media posts here, one per line or separated by blank lines..."
+                  value={samples}
+                  onChange={(e) => setSamples(e.target.value)}
+                  rows={8}
+                  className="resize-none"
+                />
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>{samples.length} characters</span>
+                  <span>Minimum 50 characters recommended</span>
+                </div>
               </div>
+              
+              <Button 
+                onClick={handleBuildProfile}
+                disabled={isBuildingProfile || samples.trim().length < 50}
+                className="gap-2"
+              >
+                <Palette className="h-4 w-4" />
+                {isBuildingProfile ? 'Building Profile...' : 'Generate Style Profile'}
+              </Button>
             </CardContent>
           </Card>
 
@@ -129,46 +143,69 @@ const Style = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <TrendingUp className="h-5 w-5" />
-                    Posting Analysis
+                    Style Analysis
                   </CardTitle>
                   <CardDescription>
-                    Your content creation patterns
+                    Your content creation patterns and preferences
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Status</span>
-                    <Badge variant={styleProfile.status === 'placeholder' ? 'secondary' : 'default'}>
-                      {styleProfile.status}
-                    </Badge>
-                  </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Source</span>
-                    <Badge variant="outline">
-                      {styleProfile.source || 'manual'}
-                    </Badge>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-sm font-medium">Tone</span>
+                      <p className="text-sm text-muted-foreground capitalize">
+                        {styleProfile.tone || 'Not analyzed'}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium">Sentence Length</span>
+                      <p className="text-sm text-muted-foreground capitalize">
+                        {styleProfile.sentence_length || 'Not analyzed'}
+                      </p>
+                    </div>
+
+                    <div>
+                      <span className="text-sm font-medium">Emoji Usage</span>
+                      <p className="text-sm text-muted-foreground capitalize">
+                        {styleProfile.emoji_usage || 'Not analyzed'}
+                      </p>
+                    </div>
+
+                    <div>
+                      <span className="text-sm font-medium">Language Style</span>
+                      <p className="text-sm text-muted-foreground capitalize">
+                        {styleProfile.language_mix || 'Not analyzed'}
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Analyzed</span>
-                    <span className="text-sm text-muted-foreground">
-                      {styleProfile.analyzed_at ? 
-                        new Date(styleProfile.analyzed_at).toLocaleDateString() : 
-                        'Not analyzed'}
-                    </span>
-                  </div>
+                  <div className="pt-4 border-t space-y-3">
+                    <div>
+                      <span className="text-sm font-medium">Hashtag Strategy</span>
+                      <Badge variant="outline" className="ml-2">
+                        {styleProfile.hashtag_strategy || 'Not defined'}
+                      </Badge>
+                    </div>
 
-                  {styleProfile.insights && (
-                    <div className="space-y-3 pt-2 border-t">
+                    <div>
+                      <span className="text-sm font-medium">Last Updated</span>
+                      <p className="text-sm text-muted-foreground">
+                        {styleProfile.analyzed_at ? 
+                          new Date(styleProfile.analyzed_at).toLocaleDateString() : 
+                          'Not analyzed'}
+                      </p>
+                    </div>
+
+                    {styleProfile.sample_count && (
                       <div>
-                        <span className="text-sm font-medium">Posting Frequency</span>
+                        <span className="text-sm font-medium">Samples Analyzed</span>
                         <p className="text-sm text-muted-foreground">
-                          {styleProfile.insights.posting_frequency || 'Not available'}
+                          {styleProfile.sample_count} posts
                         </p>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </CardContent>
               </Card>
 
@@ -176,54 +213,60 @@ const Style = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Hash className="h-5 w-5" />
-                    Content Insights
+                    Content Guidelines
                   </CardTitle>
                   <CardDescription>
-                    Themes and engagement patterns
+                    Patterns and recommendations based on your style
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {styleProfile.insights ? (
-                    <>
-                      <div>
-                        <span className="text-sm font-medium">Common Themes</span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {styleProfile.insights.common_themes?.map((theme: string, index: number) => (
-                            <Badge key={index} variant="outline" className="text-xs">
-                              {theme}
-                            </Badge>
-                          )) || (
-                            <span className="text-xs text-muted-foreground">No themes available</span>
-                          )}
-                        </div>
+                  {styleProfile.structure && Array.isArray(styleProfile.structure) && (
+                    <div>
+                      <span className="text-sm font-medium">Content Structure</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {styleProfile.structure.map((item: string, index: number) => (
+                          <Badge key={index} variant="outline" className="text-xs">
+                            {item}
+                          </Badge>
+                        ))}
                       </div>
-
-                      <div>
-                        <span className="text-sm font-medium">Engagement Pattern</span>
-                        <p className="text-sm text-muted-foreground">
-                          {styleProfile.insights.engagement_patterns || 'Not available'}
-                        </p>
-                      </div>
-
-                      <div>
-                        <span className="text-sm font-medium">Best Posting Times</span>
-                        <div className="flex gap-2 mt-1">
-                          {styleProfile.insights.best_posting_times?.map((time: string, index: number) => (
-                            <Badge key={index} variant="outline" className="text-xs">
-                              <Clock className="h-3 w-3 mr-1" />
-                              {time}
-                            </Badge>
-                          )) || (
-                            <span className="text-xs text-muted-foreground">No data available</span>
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      No insights available yet. Run an analysis to get started.
-                    </p>
+                    </div>
                   )}
+
+                  {styleProfile.cta_patterns && Array.isArray(styleProfile.cta_patterns) && (
+                    <div>
+                      <span className="text-sm font-medium">Call-to-Action Patterns</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {styleProfile.cta_patterns.map((cta: string, index: number) => (
+                          <Badge key={index} variant="secondary" className="text-xs">
+                            {cta}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {styleProfile.do_nots && Array.isArray(styleProfile.do_nots) && (
+                    <div>
+                      <span className="text-sm font-medium">Style Guidelines</span>
+                      <div className="space-y-1 mt-1">
+                        {styleProfile.do_nots.map((dont: string, index: number) => (
+                          <p key={index} className="text-xs text-muted-foreground">
+                            • {dont}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="pt-2 border-t">
+                    <Badge variant={styleProfile.status === 'analyzed' ? 'default' : 'secondary'}>
+                      {styleProfile.status}
+                    </Badge>
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      Source: {styleProfile.source || 'manual'}
+                    </span>
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -232,52 +275,37 @@ const Style = () => {
               <CardHeader>
                 <CardTitle>No Style Profile Yet</CardTitle>
                 <CardDescription>
-                  Run an analysis to discover your content style and get personalized insights
+                  Create your first style profile by pasting sample content above
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center py-8">
                 <Palette className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground mb-4">
-                  Click one of the analysis buttons above to get started with understanding your content style.
+                  A style profile helps generate captions that match your unique voice and tone.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Paste 10-30 of your past posts above and click "Generate Style Profile" to get started.
                 </p>
               </CardContent>
             </Card>
           )}
 
-          {/* Coming Soon Features */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Advanced Analytics</CardTitle>
-              <CardDescription>
-                Coming soon: More detailed insights and recommendations
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="p-4 bg-muted/50 rounded-lg text-center">
-                  <TrendingUp className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                  <h4 className="font-medium mb-1">Performance Tracking</h4>
-                  <p className="text-xs text-muted-foreground">
-                    Track engagement metrics across platforms
-                  </p>
-                </div>
-                <div className="p-4 bg-muted/50 rounded-lg text-center">
-                  <BarChart3 className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                  <h4 className="font-medium mb-1">Content Optimization</h4>
-                  <p className="text-xs text-muted-foreground">
-                    AI-powered suggestions for better reach
-                  </p>
-                </div>
-                <div className="p-4 bg-muted/50 rounded-lg text-center">
-                  <Clock className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                  <h4 className="font-medium mb-1">Timing Analysis</h4>
-                  <p className="text-xs text-muted-foreground">
-                    Optimal posting schedule recommendations
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Raw Profile Data (for debugging) */}
+          {styleProfile && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Profile Data</CardTitle>
+                <CardDescription>
+                  Raw style profile data (for reference)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <pre className="text-xs bg-muted p-4 rounded-lg overflow-auto max-h-64">
+                  {JSON.stringify(styleProfile, null, 2)}
+                </pre>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
