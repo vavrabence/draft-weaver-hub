@@ -100,16 +100,19 @@ export type Database = {
           created_at: string | null
           display_name: string | null
           id: string
+          style_profile: Json | null
         }
         Insert: {
           created_at?: string | null
           display_name?: string | null
           id: string
+          style_profile?: Json | null
         }
         Update: {
           created_at?: string | null
           display_name?: string | null
           id?: string
+          style_profile?: Json | null
         }
         Relationships: []
       }
@@ -180,7 +183,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_draft_owner: {
+        Args: { draft_id: string }
+        Returns: string
+      }
+      get_scheduled_post_owner: {
+        Args: { scheduled_post_id: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

@@ -1,3 +1,4 @@
+
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Save, Wand2, Scissors, Calendar } from 'lucide-react';
 import { useDraft, useDrafts } from '@/hooks/useDrafts';
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { webhooks } from '@/lib/webhooks';
 import MediaPreview from '@/components/MediaPreview';
 
 const DraftEditor = () => {
@@ -25,6 +28,10 @@ const DraftEditor = () => {
     target_tiktok: false,
     desired_publish_at: '',
   });
+
+  const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
+  const [isRequestingEdit, setIsRequestingEdit] = useState(false);
+  const [isScheduling, setIsScheduling] = useState(false);
 
   useEffect(() => {
     if (draft) {
@@ -83,19 +90,92 @@ const DraftEditor = () => {
     }
   };
 
-  const handleGenerateCaption = () => {
-    // TODO: Implement real caption generation
-    console.log('Generate caption for draft:', draft.id);
+  const handleGenerateCaption = async () => {
+    if (!draft) return;
+    
+    setIsGeneratingCaption(true);
+    try {
+      const result = await webhooks.generateCaption(draft.id);
+      if (result.ok) {
+        toast.success('Caption generation initiated!');
+        // Refresh the page to see updated status
+        window.location.reload();
+      } else {
+        toast.error('Failed to generate caption');
+      }
+    } catch (error) {
+      console.error('Error generating caption:', error);
+      toast.error('Failed to generate caption');
+    } finally {
+      setIsGeneratingCaption(false);
+    }
   };
 
-  const handleRequestEdit = () => {
-    // TODO: Implement real video editing request
-    console.log('Request edit for draft:', draft.id);
+  const handleRequestEdit = async () => {
+    if (!draft) return;
+    
+    setIsRequestingEdit(true);
+    try {
+      const result = await webhooks.requestEdit(draft.id, 'silence-cut+captions');
+      if (result.ok) {
+        toast.success('Edit request submitted!');
+        // Refresh the page to see updated status
+        window.location.reload();
+      } else {
+        toast.error('Failed to request edit');
+      }
+    } catch (error) {
+      console.error('Error requesting edit:', error);
+      toast.error('Failed to request edit');
+    } finally {
+      setIsRequestingEdit(false);
+    }
   };
 
-  const handleSchedule = () => {
-    // TODO: Implement real scheduling
-    console.log('Schedule draft:', draft.id);
+  const handleSchedule = async () => {
+    if (!draft || (!formData.target_instagram && !formData.target_tiktok) || !formData.desired_publish_at) {
+      toast.error('Please select at least one platform and set a publish time');
+      return;
+    }
+    
+    setIsScheduling(true);
+    try {
+      const platforms = [];
+      if (formData.target_instagram) platforms.push('instagram');
+      if (formData.target_tiktok) platforms.push('tiktok');
+
+      const result = await webhooks.schedulePost(
+        draft.id, 
+        platforms, 
+        formData.desired_publish_at
+      );
+      
+      if (result.ok) {
+        toast.success('Post scheduled successfully!');
+        // Save current form data first
+        await handleSave();
+        // Refresh to see updated status
+        window.location.reload();
+      } else {
+        toast.error('Failed to schedule post');
+      }
+    } catch (error) {
+      console.error('Error scheduling post:', error);
+      toast.error('Failed to schedule post');
+    } finally {
+      setIsScheduling(false);
+    }
+  };
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'draft': return 'secondary';
+      case 'editing': return 'default';
+      case 'caption_ready': return 'default';
+      case 'scheduled': return 'outline';
+      case 'posted': return 'default';
+      default: return 'secondary';
+    }
   };
 
   return (
@@ -130,17 +210,20 @@ const DraftEditor = () => {
               
               <div className="flex items-center gap-2 mb-4">
                 <Badge>{draft.media_type}</Badge>
-                <Badge variant="outline">{draft.status}</Badge>
+                <Badge variant={getStatusBadgeVariant(draft.status)}>
+                  {draft.status.replace('_', ' ')}
+                </Badge>
               </div>
 
               {draft.media_type === 'video' && (
                 <Button 
                   variant="outline" 
                   className="w-full gap-2"
-                  disabled
+                  onClick={handleRequestEdit}
+                  disabled={isRequestingEdit}
                 >
                   <Scissors className="h-4 w-4" />
-                  Request Video Edit
+                  {isRequestingEdit ? 'Requesting...' : 'Request Video Edit'}
                 </Button>
               )}
             </CardContent>
@@ -176,10 +259,11 @@ const DraftEditor = () => {
                     size="sm" 
                     variant="ghost" 
                     className="gap-2"
-                    disabled
+                    onClick={handleGenerateCaption}
+                    disabled={isGeneratingCaption}
                   >
                     <Wand2 className="h-3 w-3" />
-                    Generate with AI
+                    {isGeneratingCaption ? 'Generating...' : 'Generate with AI'}
                   </Button>
                 </div>
               </div>
@@ -237,11 +321,12 @@ const DraftEditor = () => {
                 </Button>
                 <Button 
                   variant="outline" 
-                  disabled
                   className="gap-2"
+                  onClick={handleSchedule}
+                  disabled={isScheduling || (!formData.target_instagram && !formData.target_tiktok) || !formData.desired_publish_at}
                 >
                   <Calendar className="h-4 w-4" />
-                  Schedule
+                  {isScheduling ? 'Scheduling...' : 'Schedule'}
                 </Button>
               </div>
             </CardContent>
