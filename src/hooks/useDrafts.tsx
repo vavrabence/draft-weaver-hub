@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 
 export interface Draft {
   id: string;
+  owner: string;
   title: string | null;
   caption: string | null;
   hashtags: string | null;
@@ -17,6 +18,18 @@ export interface Draft {
   created_at: string;
   updated_at: string;
   metadata: any;
+}
+
+export interface CreateDraftInput {
+  media_path: string;
+  media_type: 'image' | 'video';
+  title?: string;
+  caption?: string;
+  hashtags?: string;
+  target_instagram?: boolean;
+  target_tiktok?: boolean;
+  desired_publish_at?: string;
+  metadata?: any;
 }
 
 export const useDrafts = () => {
@@ -36,10 +49,16 @@ export const useDrafts = () => {
   });
 
   const createDraftMutation = useMutation({
-    mutationFn: async (draft: Partial<Draft>) => {
+    mutationFn: async (draft: CreateDraftInput) => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error('User not authenticated');
+
       const { data, error } = await supabase
         .from('drafts')
-        .insert([draft])
+        .insert({
+          ...draft,
+          owner: user.user.id
+        })
         .select()
         .single();
 
