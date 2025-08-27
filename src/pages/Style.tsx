@@ -9,6 +9,7 @@ import { webhooks } from '@/lib/webhooks';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { StyleProfile, isStyleProfile } from '@/types/style';
 
 const Style = () => {
   const { user } = useAuth();
@@ -62,7 +63,10 @@ const Style = () => {
     );
   }
 
-  const styleProfile = profile?.style_profile;
+  // Type guard and extract style profile
+  const styleProfile: StyleProfile | null = profile?.style_profile && isStyleProfile(profile.style_profile) 
+    ? profile.style_profile 
+    : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -160,7 +164,7 @@ const Style = () => {
                       <div>
                         <span className="text-sm font-medium">Posting Frequency</span>
                         <p className="text-sm text-muted-foreground">
-                          {styleProfile.insights.posting_frequency}
+                          {styleProfile.insights.posting_frequency || 'Not available'}
                         </p>
                       </div>
                     </div>
@@ -188,14 +192,16 @@ const Style = () => {
                             <Badge key={index} variant="outline" className="text-xs">
                               {theme}
                             </Badge>
-                          ))}
+                          )) || (
+                            <span className="text-xs text-muted-foreground">No themes available</span>
+                          )}
                         </div>
                       </div>
 
                       <div>
                         <span className="text-sm font-medium">Engagement Pattern</span>
                         <p className="text-sm text-muted-foreground">
-                          {styleProfile.insights.engagement_patterns}
+                          {styleProfile.insights.engagement_patterns || 'Not available'}
                         </p>
                       </div>
 
@@ -207,7 +213,9 @@ const Style = () => {
                               <Clock className="h-3 w-3 mr-1" />
                               {time}
                             </Badge>
-                          ))}
+                          )) || (
+                            <span className="text-xs text-muted-foreground">No data available</span>
+                          )}
                         </div>
                       </div>
                     </>
