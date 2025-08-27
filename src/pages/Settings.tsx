@@ -1,5 +1,4 @@
 
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,19 +8,35 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Copy, ExternalLink, Instagram, Youtube } from 'lucide-react';
 import { toast } from 'sonner';
+import { useSettings } from '@/hooks/useSettings';
+import { useState, useEffect } from 'react';
 
 const Settings = () => {
-  const [settings, setSettings] = useState({
-    lowContentAlert: true,
-    lowContentThreshold: 3
+  const { settings, integrations, isLoading, updateSettings } = useSettings();
+  const [formData, setFormData] = useState({
+    low_content_alert: true,
+    low_content_threshold: 3
   });
 
-  const [integrations] = useState({
-    instagram: false,
-    tiktok: false,
-    openaiConfigured: false,
-    videoEditProvider: null
-  });
+  useEffect(() => {
+    if (settings) {
+      setFormData({
+        low_content_alert: settings.low_content_alert,
+        low_content_threshold: settings.low_content_threshold
+      });
+    }
+  }, [settings]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Mock webhook URLs - will be generated based on actual deployment
   const webhookUrls = {
@@ -37,10 +52,12 @@ const Settings = () => {
     toast.success('Copied to clipboard!');
   };
 
-  const handleSaveSettings = () => {
-    // TODO: Implement real settings save to Supabase
-    console.log('Saving settings:', settings);
-    toast.success('Settings saved successfully!');
+  const handleSaveSettings = async () => {
+    try {
+      await updateSettings(formData);
+    } catch (error) {
+      console.error('Error saving settings:', error);
+    }
   };
 
   return (
@@ -77,8 +94,8 @@ const Settings = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Badge variant={integrations.instagram ? 'default' : 'secondary'}>
-                    {integrations.instagram ? 'Connected' : 'Not Connected'}
+                  <Badge variant={integrations?.instagram_connected ? 'default' : 'secondary'}>
+                    {integrations?.instagram_connected ? 'Connected' : 'Not Connected'}
                   </Badge>
                   <Button disabled variant="outline">
                     Connect
@@ -102,8 +119,8 @@ const Settings = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Badge variant={integrations.tiktok ? 'default' : 'secondary'}>
-                    {integrations.tiktok ? 'Connected' : 'Not Connected'}
+                  <Badge variant={integrations?.tiktok_connected ? 'default' : 'secondary'}>
+                    {integrations?.tiktok_connected ? 'Connected' : 'Not Connected'}
                   </Badge>
                   <Button disabled variant="outline">
                     Connect
@@ -111,7 +128,7 @@ const Settings = () => {
                 </div>
               </div>
 
-              {!integrations.instagram && !integrations.tiktok && (
+              {!integrations?.instagram_connected && !integrations?.tiktok_connected && (
                 <div className="p-4 bg-muted/50 rounded-lg">
                   <p className="text-sm text-muted-foreground">
                     <strong>Coming Soon:</strong> Platform integrations will be enabled once you set up 
@@ -169,7 +186,6 @@ const Settings = () => {
             </CardContent>
           </Card>
 
-          {/* Notification Settings */}
           <Card>
             <CardHeader>
               <CardTitle>Notifications</CardTitle>
@@ -187,14 +203,14 @@ const Settings = () => {
                 </div>
                 <Switch
                   id="low-content-alert"
-                  checked={settings.lowContentAlert}
+                  checked={formData.low_content_alert}
                   onCheckedChange={(checked) => 
-                    setSettings(prev => ({ ...prev, lowContentAlert: checked }))
+                    setFormData(prev => ({ ...prev, low_content_alert: checked }))
                   }
                 />
               </div>
 
-              {settings.lowContentAlert && (
+              {formData.low_content_alert && (
                 <div className="space-y-2">
                   <Label htmlFor="threshold">Alert Threshold</Label>
                   <div className="flex items-center gap-2">
@@ -203,9 +219,9 @@ const Settings = () => {
                       type="number"
                       min="1"
                       max="10"
-                      value={settings.lowContentThreshold}
+                      value={formData.low_content_threshold}
                       onChange={(e) => 
-                        setSettings(prev => ({ ...prev, lowContentThreshold: parseInt(e.target.value) }))
+                        setFormData(prev => ({ ...prev, low_content_threshold: parseInt(e.target.value) }))
                       }
                       className="w-20"
                     />
@@ -222,7 +238,6 @@ const Settings = () => {
             </CardContent>
           </Card>
 
-          {/* Webhook URLs */}
           <Card>
             <CardHeader>
               <CardTitle>Webhook URLs</CardTitle>

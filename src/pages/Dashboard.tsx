@@ -1,32 +1,47 @@
 
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Upload, FileText, Calendar, Palette, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useDrafts } from '@/hooks/useDrafts';
+import { useAuth } from '@/hooks/useAuth';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [isFirstLogin] = useState(true); // Mock data - will be replaced with real check
+  const { user } = useAuth();
+  const { drafts, isLoading } = useDrafts();
 
-  // Mock data - will be replaced with real queries
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
   const stats = {
-    drafts: 0,
-    scheduled: 0,
-    posted: 12
+    drafts: drafts?.length || 0,
+    scheduled: drafts?.filter(d => d.status === 'scheduled').length || 0,
+    posted: drafts?.filter(d => d.status === 'posted').length || 0
   };
+
+  const isFirstLogin = stats.drafts === 0;
 
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-6">
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Manage your content creation workflow</p>
+          <p className="text-muted-foreground">
+            Welcome back, {user?.email?.split('@')[0] || 'there'}! Manage your content creation workflow
+          </p>
         </div>
 
-        {isFirstLogin && stats.drafts === 0 ? (
-          // Empty state for first-time users
+        {isFirstLogin ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="bg-muted/50 rounded-full p-6 mb-6">
               <Upload className="h-12 w-12 text-muted-foreground" />
@@ -41,7 +56,6 @@ const Dashboard = () => {
             </Button>
           </div>
         ) : (
-          // Dashboard with content
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/drafts')}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -94,7 +108,6 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Quick Actions */}
         <div className="mt-8">
           <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
           <div className="flex gap-3 flex-wrap">

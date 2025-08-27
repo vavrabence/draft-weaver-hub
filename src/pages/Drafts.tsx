@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,47 +7,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { FileImage, FileVideo, Edit, Wand2, Scissors, Calendar, Trash2, Search, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-interface Draft {
-  id: string;
-  title: string;
-  mediaType: 'image' | 'video';
-  status: 'draft' | 'editing' | 'caption_ready' | 'scheduled' | 'posted';
-  targetInstagram: boolean;
-  targetTiktok: boolean;
-  createdAt: string;
-  thumbnail: string;
-}
+import { useDrafts } from '@/hooks/useDrafts';
+import { supabase } from '@/integrations/supabase/client';
 
 const Drafts = () => {
   const navigate = useNavigate();
+  const { drafts, isLoading, deleteDraft } = useDrafts();
   const [selectedDrafts, setSelectedDrafts] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Mock data - will be replaced with real queries
-  const mockDrafts: Draft[] = [
-    {
-      id: '1',
-      title: 'Summer Vibes Photo',
-      mediaType: 'image',
-      status: 'draft',
-      targetInstagram: true,
-      targetTiktok: false,
-      createdAt: '2024-01-15',
-      thumbnail: '/placeholder.svg'
-    },
-    {
-      id: '2', 
-      title: 'Cooking Tutorial Video',
-      mediaType: 'video',
-      status: 'caption_ready',
-      targetInstagram: true,
-      targetTiktok: true,
-      createdAt: '2024-01-14',
-      thumbnail: '/placeholder.svg'
-    }
-  ];
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading drafts...</p>
+        </div>
+      </div>
+    );
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -69,11 +47,27 @@ const Drafts = () => {
     );
   };
 
-  const filteredDrafts = mockDrafts.filter(draft => {
+  const handleDeleteSelected = async () => {
+    try {
+      await Promise.all(selectedDrafts.map(id => deleteDraft(id)));
+      setSelectedDrafts([]);
+    } catch (error) {
+      console.error('Error deleting drafts:', error);
+    }
+  };
+
+  const getMediaUrl = async (mediaPath: string) => {
+    const { data } = await supabase.storage
+      .from('raw_media')
+      .createSignedUrl(mediaPath, 3600);
+    return data?.signedUrl || '/placeholder.svg';
+  };
+
+  const filteredDrafts = drafts?.filter(draft => {
     const matchesStatus = statusFilter === 'all' || draft.status === statusFilter;
-    const matchesSearch = draft.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = draft.title?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
     return matchesStatus && matchesSearch;
-  });
+  }) || [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -85,7 +79,6 @@ const Drafts = () => {
           </p>
         </div>
 
-        {/* Filters */}
         <Card className="mb-6">
           <CardContent className="pt-6">
             <div className="flex flex-col sm:flex-row gap-4">
@@ -121,7 +114,12 @@ const Drafts = () => {
                   <p className="text-sm text-muted-foreground">
                     {selectedDrafts.length} drafts selected
                   </p>
-                  <Button variant="destructive" size="sm" className="gap-2">
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    className="gap-2"
+                    onClick={handleDeleteSelected}
+                  >
                     <Trash2 className="h-4 w-4" />
                     Delete Selected
                   </Button>
@@ -131,14 +129,13 @@ const Drafts = () => {
           </CardContent>
         </Card>
 
-        {/* Drafts Grid */}
         {filteredDrafts.length === 0 ? (
           <Card>
             <CardContent className="py-16 text-center">
               <FileImage className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">No drafts found</h3>
               <p className="text-muted-foreground mb-4">
-                {mockDrafts.length === 0 
+                {drafts?.length === 0 
                   ? "Upload some content to get started" 
                   : "Try adjusting your search or filters"}
               </p>
@@ -153,12 +150,12 @@ const Drafts = () => {
               <Card key={draft.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="relative">
                   <img 
-                    src={draft.thumbnail} 
-                    alt={draft.title}
+                    src="/placeholder.svg"
+                    alt={draft.title || 'Draft'}
                     className="w-full h-48 object-cover"
                   />
                   <div className="absolute top-3 left-3">
-                    {draft.mediaType === 'image' ? (
+                    {draft.media_type === 'image' ? (
                       <FileImage className="h-6 w-6 text-white bg-black/50 rounded p-1" />
                     ) : (
                       <FileVideo className="h-6 w-6 text-white bg-black/50 rounded p-1" />
@@ -175,9 +172,9 @@ const Drafts = () => {
                 
                 <CardContent className="p-4">
                   <div className="mb-3">
-                    <h3 className="font-semibold truncate">{draft.title}</h3>
+                    <h3 className="font-semibold truncate">{draft.title || 'Untitled Draft'}</h3>
                     <p className="text-sm text-muted-foreground">
-                      Created {new Date(draft.createdAt).toLocaleDateString()}
+                      Created {new Date(draft.created_at).toLocaleDateString()}
                     </p>
                   </div>
 
@@ -185,8 +182,8 @@ const Drafts = () => {
                     <Badge variant={getStatusColor(draft.status)}>
                       {draft.status.replace('_', ' ')}
                     </Badge>
-                    {draft.targetInstagram && <Badge variant="outline">IG</Badge>}
-                    {draft.targetTiktok && <Badge variant="outline">TT</Badge>}
+                    {draft.target_instagram && <Badge variant="outline">IG</Badge>}
+                    {draft.target_tiktok && <Badge variant="outline">TT</Badge>}
                   </div>
 
                   <div className="flex gap-2">
@@ -209,7 +206,7 @@ const Drafts = () => {
                       <Wand2 className="h-3 w-3" />
                     </Button>
                     
-                    {draft.mediaType === 'video' && (
+                    {draft.media_type === 'video' && (
                       <Button 
                         size="sm" 
                         variant="outline" 

@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,16 +5,20 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Upload as UploadIcon, FileImage, FileVideo, X, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useDrafts } from '@/hooks/useDrafts';
+import { toast } from 'sonner';
 
 interface UploadFile {
   id: string;
   file: File;
   progress: number;
   status: 'pending' | 'uploading' | 'completed' | 'error';
+  draftId?: string;
 }
 
 const Upload = () => {
   const navigate = useNavigate();
+  const { createDraft } = useDrafts();
   const [files, setFiles] = useState<UploadFile[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -54,35 +57,56 @@ const Upload = () => {
     setFiles(prev => prev.filter(f => f.id !== id));
   };
 
-  const startUpload = async () => {
-    // Mock upload process - will be replaced with real Supabase upload
-    for (const file of files) {
-      if (file.status !== 'pending') continue;
-      
-      setFiles(prev => prev.map(f => 
-        f.id === file.id ? { ...f, status: 'uploading' as const } : f
-      ));
-
-      // Simulate upload progress
-      for (let progress = 0; progress <= 100; progress += 10) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-        setFiles(prev => prev.map(f => 
-          f.id === file.id ? { ...f, progress } : f
-        ));
-      }
-
-      setFiles(prev => prev.map(f => 
-        f.id === file.id ? { ...f, status: 'completed' as const } : f
-      ));
-    }
-  };
-
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const startUpload = async () => {
+    for (const fileItem of files) {
+      if (fileItem.status !== 'pending') continue;
+      
+      setFiles(prev => prev.map(f => 
+        f.id === fileItem.id ? { ...f, status: 'uploading' as const } : f
+      ));
+
+      try {
+        // Simulate upload progress
+        for (let progress = 0; progress <= 90; progress += 10) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+          setFiles(prev => prev.map(f => 
+            f.id === fileItem.id ? { ...f, progress } : f
+          ));
+        }
+
+        // Create draft in database (without actual file upload for now)
+        const draft = await createDraft({
+          media_path: `temp/${fileItem.file.name}`, // Temporary path
+          media_type: fileItem.file.type.startsWith('image/') ? 'image' : 'video',
+          title: fileItem.file.name.split('.')[0],
+          status: 'draft'
+        });
+
+        setFiles(prev => prev.map(f => 
+          f.id === fileItem.id ? { 
+            ...f, 
+            status: 'completed' as const, 
+            progress: 100,
+            draftId: draft.id 
+          } : f
+        ));
+
+      } catch (error) {
+        console.error('Upload failed:', error);
+        setFiles(prev => prev.map(f => 
+          f.id === fileItem.id ? { ...f, status: 'error' as const } : f
+        ));
+        toast.error(`Failed to upload ${fileItem.file.name}`);
+      }
+    }
   };
 
   return (
@@ -96,7 +120,6 @@ const Upload = () => {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* Upload Area */}
           <Card>
             <CardHeader>
               <CardTitle>Select Files</CardTitle>
@@ -142,7 +165,6 @@ const Upload = () => {
             </CardContent>
           </Card>
 
-          {/* File List */}
           <Card>
             <CardHeader>
               <CardTitle>Upload Queue</CardTitle>

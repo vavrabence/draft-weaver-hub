@@ -1,5 +1,4 @@
 
-import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,46 +9,92 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Save, Wand2, Scissors, Calendar, Play } from 'lucide-react';
-import { toast } from 'sonner';
+import { useDraft, useDrafts } from '@/hooks/useDrafts';
+import { useState, useEffect } from 'react';
 
 const DraftEditor = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { data: draft, isLoading } = useDraft(id!);
+  const { updateDraft } = useDrafts();
 
-  // Mock data - will be replaced with real queries
-  const [draft, setDraft] = useState({
-    id: id,
-    title: 'Summer Vibes Photo',
-    caption: 'Enjoying the beautiful summer weather! ☀️',
-    hashtags: '#summer, #vibes, #sunshine, #photography',
-    targetInstagram: true,
-    targetTiktok: false,
-    desiredPublishAt: '',
-    language: 'en',
-    mediaType: 'image' as 'image' | 'video',
-    mediaUrl: '/placeholder.svg',
-    status: 'draft'
+  const [formData, setFormData] = useState({
+    title: '',
+    caption: '',
+    hashtags: '',
+    target_instagram: true,
+    target_tiktok: false,
+    desired_publish_at: '',
   });
 
-  const handleSave = () => {
-    // TODO: Implement real save to Supabase
-    console.log('Saving draft:', draft);
-    toast.success('Draft saved successfully!');
+  useEffect(() => {
+    if (draft) {
+      setFormData({
+        title: draft.title || '',
+        caption: draft.caption || '',
+        hashtags: draft.hashtags || '',
+        target_instagram: draft.target_instagram,
+        target_tiktok: draft.target_tiktok,
+        desired_publish_at: draft.desired_publish_at ? 
+          new Date(draft.desired_publish_at).toISOString().slice(0, 16) : '',
+      });
+    }
+  }, [draft]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading draft...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!draft) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-2">Draft not found</h2>
+          <p className="text-muted-foreground mb-4">The draft you're looking for doesn't exist.</p>
+          <Button onClick={() => navigate('/drafts')}>
+            Back to Drafts
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const handleSave = async () => {
+    try {
+      await updateDraft({
+        id: draft.id,
+        title: formData.title || null,
+        caption: formData.caption || null,
+        hashtags: formData.hashtags || null,
+        target_instagram: formData.target_instagram,
+        target_tiktok: formData.target_tiktok,
+        desired_publish_at: formData.desired_publish_at || null,
+      });
+    } catch (error) {
+      console.error('Error saving draft:', error);
+    }
   };
 
   const handleGenerateCaption = () => {
     // TODO: Implement real caption generation
-    toast.info('Caption generation coming soon!');
+    console.log('Generate caption for draft:', draft.id);
   };
 
   const handleRequestEdit = () => {
     // TODO: Implement real video editing request
-    toast.info('Video editing coming soon!');
+    console.log('Request edit for draft:', draft.id);
   };
 
   const handleSchedule = () => {
     // TODO: Implement real scheduling
-    toast.info('Post scheduling coming soon!');
+    console.log('Schedule draft:', draft.id);
   };
 
   return (
@@ -69,33 +114,32 @@ const DraftEditor = () => {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* Media Preview */}
           <Card>
             <CardHeader>
               <CardTitle>Media Preview</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="aspect-square bg-muted rounded-lg overflow-hidden mb-4">
-                {draft.mediaType === 'video' ? (
+                {draft.media_type === 'video' ? (
                   <div className="relative w-full h-full flex items-center justify-center bg-black">
                     <Play className="h-16 w-16 text-white" />
                     <div className="absolute inset-0 bg-black/20" />
                   </div>
                 ) : (
                   <img 
-                    src={draft.mediaUrl} 
-                    alt={draft.title}
+                    src="/placeholder.svg"
+                    alt={draft.title || 'Draft'}
                     className="w-full h-full object-cover"
                   />
                 )}
               </div>
               
               <div className="flex items-center gap-2 mb-4">
-                <Badge>{draft.mediaType}</Badge>
+                <Badge>{draft.media_type}</Badge>
                 <Badge variant="outline">{draft.status}</Badge>
               </div>
 
-              {draft.mediaType === 'video' && (
+              {draft.media_type === 'video' && (
                 <Button 
                   variant="outline" 
                   className="w-full gap-2"
@@ -109,7 +153,6 @@ const DraftEditor = () => {
             </CardContent>
           </Card>
 
-          {/* Edit Form */}
           <Card>
             <CardHeader>
               <CardTitle>Content Details</CardTitle>
@@ -119,8 +162,8 @@ const DraftEditor = () => {
                 <Label htmlFor="title">Title</Label>
                 <Input
                   id="title"
-                  value={draft.title}
-                  onChange={(e) => setDraft(prev => ({ ...prev, title: e.target.value }))}
+                  value={formData.title}
+                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="Enter a title for this post"
                 />
               </div>
@@ -129,13 +172,13 @@ const DraftEditor = () => {
                 <Label htmlFor="caption">Caption</Label>
                 <Textarea
                   id="caption"
-                  value={draft.caption}
-                  onChange={(e) => setDraft(prev => ({ ...prev, caption: e.target.value }))}
+                  value={formData.caption}
+                  onChange={(e) => setFormData(prev => ({ ...prev, caption: e.target.value }))}
                   placeholder="Write your post caption..."
                   rows={4}
                 />
                 <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>{draft.caption.length} characters</span>
+                  <span>{formData.caption.length} characters</span>
                   <Button 
                     size="sm" 
                     variant="ghost" 
@@ -153,8 +196,8 @@ const DraftEditor = () => {
                 <Label htmlFor="hashtags">Hashtags</Label>
                 <Input
                   id="hashtags"
-                  value={draft.hashtags}
-                  onChange={(e) => setDraft(prev => ({ ...prev, hashtags: e.target.value }))}
+                  value={formData.hashtags}
+                  onChange={(e) => setFormData(prev => ({ ...prev, hashtags: e.target.value }))}
                   placeholder="Comma-separated hashtags"
                 />
               </div>
@@ -165,9 +208,9 @@ const DraftEditor = () => {
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       id="instagram"
-                      checked={draft.targetInstagram}
+                      checked={formData.target_instagram}
                       onCheckedChange={(checked) => 
-                        setDraft(prev => ({ ...prev, targetInstagram: !!checked }))
+                        setFormData(prev => ({ ...prev, target_instagram: !!checked }))
                       }
                     />
                     <Label htmlFor="instagram">Instagram</Label>
@@ -175,9 +218,9 @@ const DraftEditor = () => {
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       id="tiktok"
-                      checked={draft.targetTiktok}
+                      checked={formData.target_tiktok}
                       onCheckedChange={(checked) => 
-                        setDraft(prev => ({ ...prev, targetTiktok: !!checked }))
+                        setFormData(prev => ({ ...prev, target_tiktok: !!checked }))
                       }
                     />
                     <Label htmlFor="tiktok">TikTok</Label>
@@ -190,26 +233,9 @@ const DraftEditor = () => {
                 <Input
                   id="publish-time"
                   type="datetime-local"
-                  value={draft.desiredPublishAt}
-                  onChange={(e) => setDraft(prev => ({ ...prev, desiredPublishAt: e.target.value }))}
+                  value={formData.desired_publish_at}
+                  onChange={(e) => setFormData(prev => ({ ...prev, desired_publish_at: e.target.value }))}
                 />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="language">Language</Label>
-                <Select value={draft.language} onValueChange={(value) => 
-                  setDraft(prev => ({ ...prev, language: value }))
-                }>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="en">English</SelectItem>
-                    <SelectItem value="es">Spanish</SelectItem>
-                    <SelectItem value="fr">French</SelectItem>
-                    <SelectItem value="de">German</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
 
               <div className="flex gap-3 pt-4">

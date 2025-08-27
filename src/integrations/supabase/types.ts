@@ -14,7 +14,167 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      drafts: {
+        Row: {
+          caption: string | null
+          created_at: string | null
+          desired_publish_at: string | null
+          hashtags: string | null
+          id: string
+          media_path: string
+          media_type: string
+          metadata: Json | null
+          owner: string
+          status: string
+          target_instagram: boolean | null
+          target_tiktok: boolean | null
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string | null
+          desired_publish_at?: string | null
+          hashtags?: string | null
+          id?: string
+          media_path: string
+          media_type: string
+          metadata?: Json | null
+          owner: string
+          status?: string
+          target_instagram?: boolean | null
+          target_tiktok?: boolean | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string | null
+          desired_publish_at?: string | null
+          hashtags?: string | null
+          id?: string
+          media_path?: string
+          media_type?: string
+          metadata?: Json | null
+          owner?: string
+          status?: string
+          target_instagram?: boolean | null
+          target_tiktok?: boolean | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      integrations: {
+        Row: {
+          created_at: string | null
+          instagram_connected: boolean | null
+          openai_configured: boolean | null
+          owner: string
+          tiktok_connected: boolean | null
+          updated_at: string | null
+          video_edit_provider: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          instagram_connected?: boolean | null
+          openai_configured?: boolean | null
+          owner: string
+          tiktok_connected?: boolean | null
+          updated_at?: string | null
+          video_edit_provider?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          instagram_connected?: boolean | null
+          openai_configured?: boolean | null
+          owner?: string
+          tiktok_connected?: boolean | null
+          updated_at?: string | null
+          video_edit_provider?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          display_name: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string | null
+          display_name?: string | null
+          id: string
+        }
+        Update: {
+          created_at?: string | null
+          display_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      scheduled_posts: {
+        Row: {
+          created_at: string | null
+          draft_id: string
+          external_post_id: string | null
+          id: string
+          platform: string
+          scheduled_for: string
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          draft_id: string
+          external_post_id?: string | null
+          id?: string
+          platform: string
+          scheduled_for: string
+          status?: string
+        }
+        Update: {
+          created_at?: string | null
+          draft_id?: string
+          external_post_id?: string | null
+          id?: string
+          platform?: string
+          scheduled_for?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_posts_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "drafts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      settings: {
+        Row: {
+          created_at: string | null
+          low_content_alert: boolean | null
+          low_content_threshold: number | null
+          owner: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          low_content_alert?: boolean | null
+          low_content_threshold?: number | null
+          owner: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          low_content_alert?: boolean | null
+          low_content_threshold?: number | null
+          owner?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
