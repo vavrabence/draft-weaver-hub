@@ -65,6 +65,33 @@ export type Database = {
         }
         Relationships: []
       }
+      events: {
+        Row: {
+          created_at: string | null
+          id: string
+          kind: string
+          owner: string
+          payload: Json | null
+          ref_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          kind: string
+          owner: string
+          payload?: Json | null
+          ref_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          kind?: string
+          owner?: string
+          payload?: Json | null
+          ref_id?: string | null
+        }
+        Relationships: []
+      }
       integrations: {
         Row: {
           created_at: string | null
