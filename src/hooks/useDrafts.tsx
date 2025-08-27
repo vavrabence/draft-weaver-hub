@@ -29,6 +29,7 @@ export interface CreateDraftInput {
   target_instagram?: boolean;
   target_tiktok?: boolean;
   desired_publish_at?: string;
+  status?: 'draft' | 'editing' | 'caption_ready' | 'scheduled' | 'posted' | 'failed';
   metadata?: any;
 }
 
